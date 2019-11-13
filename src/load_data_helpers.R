@@ -79,9 +79,9 @@ combine_bulk_reference_profiles <- function(reference_folder, snp_file) {
   ref_count <- matrix(data=0, nrow=nrow(snp_file), ncol=length(reference_files))
   alt_count <- matrix(data=0, nrow=nrow(snp_file), ncol=length(reference_files))
   
-  colnames(ref_count) <- CLs
+  colnames(ref_count) <- reference_names
   rownames(ref_count) <- snp_names
-  colnames(alt_count) <- CLs
+  colnames(alt_count) <- reference_names
   rownames(alt_count) <- snp_names
   
   # combine freebayes output into matrices
