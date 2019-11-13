@@ -17,7 +17,7 @@ load_reference_files <- function(bulk_ref_file, bulk_alt_file, pseudo_cnt = 1) {
 }
 
 # read in single cell reference and alternate allele counts
-# files are output from scAlleleCount 
+# files are output from snpclust
 load_single_cell_files <- function(sc_ref_file, sc_alt_file) {
   sc_ref <- Matrix::readMM(sc_ref_file) %>% as.matrix() %>% t()
   sc_alt <- Matrix::readMM(sc_alt_file) %>% as.matrix() %>% t()
