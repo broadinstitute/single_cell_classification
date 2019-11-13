@@ -4,7 +4,7 @@ source(here::here('src', 'SNP_classification_helpers.R'))
 sc_SNP_match <- function(ref_reads, alt_reads, bulk_alt_probs, max_retry = 5, doublet, ind, all_stats=F, fast=F) {
   
   #extract SNPs where we have at least some reads in the cell
-  used_SNPs <- which(ref_reads + alt_reads > 0)
+  used_SNPs <- which(Matrix::colSums(ref_reads + alt_reads) > 0)
   
   if(length(used_SNPs) <= 1) {
     print("NO READS")
@@ -13,13 +13,13 @@ sc_SNP_match <- function(ref_reads, alt_reads, bulk_alt_probs, max_retry = 5, do
     
   } else {
     # subset to SNP sites with reads
-    ref_reads <- ref_reads[used_SNPs]
-    alt_reads <- alt_reads[used_SNPs]
+    ref_reads <- ref_reads[,used_SNPs]
+    alt_reads <- alt_reads[,used_SNPs]
     
     sc_obs_mat <- cbind(ref_reads, alt_reads)
     
     tot_reads <- sum(ref_reads + alt_reads)
-    num_SNPs <- sum(ref_reads + alt_reads > 0)
+    num_SNPs <- length(used_SNPs)
     
     if(fast) {
       # doesn't produce margin stats, but runs faster and is used for out of pool classification
@@ -34,8 +34,9 @@ sc_SNP_match <- function(ref_reads, alt_reads, bulk_alt_probs, max_retry = 5, do
     
     #find best doublet pair
     if(doublet==TRUE) {
-      doublet_class <- single_cell_classification(bulk_alt_probs[used_SNPs,], sc_obs_mat, num_coefs=2, max_retry=max_retry, top_singlet =res$singlet_ID, singlet_dev = res$singlet_dev)
-      res$doublet_dev_ratio <- doublet_class$doublet_dev_ratio
+      top_singlet <- res$singlet_ID %>% as.character()
+      doublet_class <- single_cell_classification(bulk_alt_probs[used_SNPs,], sc_obs_mat, num_coefs=2, max_retry=max_retry, top_singlet =top_singlet, singlet_dev = res$singlet_dev)
+      res$doublet_ratio <- doublet_class$doublet_ratio
       if(is.na(doublet_class$doublet_dev_ratio) | is.na(res$singlet_dev)) {
         res$doublet_dev_imp <- NA
       } else {

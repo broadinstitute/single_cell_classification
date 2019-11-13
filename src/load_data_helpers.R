@@ -5,26 +5,20 @@ load_reference_files <- function(bulk_ref_file, bulk_alt_file, pseudo_cnt = 1) {
   bulk_alt <- read.csv(bulk_alt_file, check.names = F) %>% as.data.frame()
   bulk_ref <- read.csv(bulk_ref_file, check.names = F) %>% as.data.frame()
   
-  # Add dummy SNP to prevent errors with glmnet:
-  bulk_alt <- rbind(bulk_alt, rep(1,ncol(bulk_alt))) %>% as.matrix()
-  bulk_ref <- rbind(bulk_ref, rep(1,ncol(bulk_ref))) %>% as.matrix()
-  
   # add pseudocount
   bulk_alt_p <- (bulk_alt + pseudo_cnt)/(bulk_alt + bulk_ref + 2*pseudo_cnt) %>% as.matrix()
+  
+  bulk_alt_p <- bulk_alt_p %>% as.matrix()
   
   return(bulk_alt_p)
   
 }
 
 # read in single cell reference and alternate allele counts
-# files are output from snpclust
+# files are output from scAlleleCount 
 load_single_cell_files <- function(sc_ref_file, sc_alt_file) {
-  sc_ref <- Matrix::readMM(sc_ref_file) %>% as.matrix() %>% t()
-  sc_alt <- Matrix::readMM(sc_alt_file) %>% as.matrix() %>% t()
-  
-  # Add dummy SNP to prevent errors with glmnet:
-  sc_ref <- rbind(sc_ref, rep(1,ncol(sc_ref))) %>% as.matrix()
-  sc_alt <- rbind(sc_alt, rep(1,ncol(sc_alt))) %>% as.matrix()
+  sc_ref <- Matrix::readMM(sc_ref_file)
+  sc_alt <- Matrix::readMM(sc_alt_file)
   
   return(list(sc_ref=sc_ref, sc_alt=sc_alt))
 }
@@ -33,7 +27,7 @@ load_single_cell_files <- function(sc_ref_file, sc_alt_file) {
 load_sc_exp <- function(data_folder) {
   rMat <- Matrix::readMM(file.path(data_folder, 'matrix.mtx')) %>% as.matrix()
   genes <- readr::read_tsv(file.path(data_folder, 'genes.tsv'), col_names = F) %>% 
-    set_colnames(c('Ensembl_ID', 'Gene_Symbol'))
+    magrittr::set_colnames(c('Ensembl_ID', 'Gene_Symbol'))
   barcodes <- readr::read_tsv(file.path(data_folder, 'barcodes.tsv'), col_names = F) 
   colnames(rMat) <- barcodes$X1
   rownames(rMat) <- genes$Ensembl_ID
@@ -57,10 +51,43 @@ convert_to_hugo_symbols <- function (dat) {
   return(dat)
 }
 
+# input data object containing the counts, cell info (cell line classifications), and gene info
+# for the experiment
+create_seurat_obj <- function(dat, use_symbols = TRUE) {
+  if(use_symbols) {
+    dat <- dat %>%
+      convert_to_hugo_symbols() #convert genes to hugo symbols (and only keep unique hugo symbol genes)
+  }
+  rownames(dat$cell_info) <- dat$cell_info$barcode
+  
+  #make into Seurat object
+  seuObj <- Seurat::CreateSeuratObject(dat$counts, 
+                                       min.cells = 0,
+                                       min.features = 0,
+                                       meta.data = dat$cell_info)
+  
+  #make singlet classifications the cell identifiers
+  seuObj <- Seurat::SetIdent(seuObj, value = seuObj@meta.data$singlet_ID)
+  
+  #store gene info here
+  seuObj@misc <- dat$gene_info
+  
+  #add mitochondrial gene fraction
+  seuObj<- Seurat::PercentageFeatureSet(seuObj, pattern = "^MT-", col.name = 'percent.mito')
+  
+  #add cellular detection rate (fraction of genes detected in a given cell)
+  seuObj@meta.data$cell_det_rate <- seuObj$nFeature_RNA/nrow(seuObj@assays$RNA@counts)
+  
+  return(seuObj)
+}
+
 # downsample single cell ref and alt allele counts to test SNP classification
 downsample_single_cell <- function(sc_alt, sc_ref, downsample_rate) {
-  sc_ref <- DropletUtils::downsampleMatrix(sc_ref, downsample_rate)
-  sc_alt <- DropletUtils::downsampleMatrix(sc_alt, downsample_rate)
+  sc_ref <- DropletUtils::downsampleMatrix(as.matrix(sc_ref), downsample_rate, bycol=FALSE)
+  sc_alt <- DropletUtils::downsampleMatrix(as.matrix(sc_alt), downsample_rate, bycol=FALSE)
+  
+  sc_ref <- Matrix(sc_ref, sparse = TRUE)
+  sc_alt <- Matrix(sc_alt, sparse = TRUE) 
   
   return(list(sc_ref=sc_ref, sc_alt=sc_alt))
 }
@@ -76,8 +103,8 @@ combine_bulk_reference_profiles <- function(reference_folder, snp_file) {
   snps <- data.table::fread(snp_file) %>% as.data.frame()
   snp_names <- paste0(snps[,1], "_", snps[,2], "_", snps[,3], "_", snps[,4])
   
-  ref_count <- matrix(data=0, nrow=nrow(snp_file), ncol=length(reference_files))
-  alt_count <- matrix(data=0, nrow=nrow(snp_file), ncol=length(reference_files))
+  ref_count <- matrix(data=0, nrow=nrow(snps), ncol=length(reference_files))
+  alt_count <- matrix(data=0, nrow=nrow(snps), ncol=length(reference_files))
   
   colnames(ref_count) <- reference_names
   rownames(ref_count) <- snp_names
@@ -182,4 +209,24 @@ combine_bulk_reference_profiles <- function(reference_folder, snp_file) {
     ref_count[bulk_snps[used_inds],i] <- RO[used_inds]
     alt_count[bulk_snps[used_inds],i] <- AO[used_inds]
   }
+}
+
+# pre-allocate size of classification matrix
+create_classification_matrix <- function(num_rows, call_doublets, fast, run_stats) {
+  output_ncols <- 5
+  if(call_doublets) {
+    output_ncols <- output_ncols + 3
+  }
+  if(!fast) {
+    output_ncols <- output_ncols + 3
+  }
+  if(run_stats) {
+    output_ncols <- 8
+    call_doublets <- FALSE
+    fast <- FALSE
+    num_rows <- num_rows * ncol(bulk_alt_p)
+  }
+  SNP_class <- as.data.frame(matrix(data=NA, nrow=num_rows, ncol=output_ncols))
+  
+  return(SNP_class)
 }
