@@ -1,5 +1,5 @@
 library(mclust)
-library(ggplot)
+library(ggplot2)
 
 # begin adding cell quality classifications
 # classify cells with too few SNPs or abnormal mitochondrial read percentages as low quality
@@ -24,7 +24,7 @@ process_Seurat_obj <- function(seuObj, n_pcs = 50, cluster_k =10, clust_res = 1,
   
   rownames(seuObj@meta.data) <- seuObj@meta.data$barcode
   
-  seuObj <- Suerat::subset(seuObj, cells = dplyr::filter(seuObj@meta.data, cell_quality == 'normal')$barcode)
+  seuObj <- Seurat::SubsetData(seuObj, cells = dplyr::filter(seuObj@meta.data, cell_quality == 'normal')$barcode)
   # run Seurat methods to get gene expression clusters
   seuObj <- Seurat::NormalizeData(object = seuObj, 
                                   normalization.method = "LogNormalize", 
@@ -143,7 +143,7 @@ classify_doublets <- function(seuObj, doub_prob_thresh=0.5, doublet_dev_offset =
     
     g3 <- ggplot2::ggplot(doublet_df %>% dplyr::mutate(is_doublet = barcode %in% doublet_cells), ggplot2::aes(singlet_dev, log_doublet_imp, color= is_doublet)) +
       ggplot2::geom_point() +
-      ggplot2::theme(legend.position = "right", legend.direction = "vertical", legend.text =ggplot2:: element_text(size=10)) +
+      ggplot2::theme(legend.position = "right", legend.direction = "vertical", legend.text =ggplot2::element_text(size=10)) +
       ggplot2::xlab("singlet deviance") + ggplot2::ylab("log doublet deviance improvement") +
       ggplot2::guides(color = ggplot2::guide_legend(title = 'doublet'))
     
