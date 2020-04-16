@@ -5,6 +5,8 @@ These methods were used in the paper: 'Multiplexed single-cell profiling of post
 
 ## Running single_cell_classification:
 
+This method was run on macOS High Sierra v10.13.6 using RStudio version 1.2.5033 and R version 3.6.2 (2019-12-12).
+
 * clone or download the git repo
 * install the R package dependencies using the install_packages.R script
 * open single_cell_classification as your project root directory
