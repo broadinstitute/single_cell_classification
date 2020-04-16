@@ -1,7 +1,11 @@
 source(here::here('src', 'load_data_helpers.R'))
 source(here::here('src', 'QC_methods.R'))
 
-
+# this method run the QC methods (identifying doublets and low quality cells)
+# it assumes that the input data is stored in a folder data instead the single_cell_classification folder
+# The required input data is:
+# 10X single cell data output from Cellranger - matrix.mtx, genes.tsv, barcodes.tsv
+# classifications.csv file created by running run_SNP_classification()
 run_all_QC <- function() {
   # run QC methods
   dat <- load_sc_exp(here::here('data'))
@@ -11,7 +15,7 @@ run_all_QC <- function() {
   # set parameters based on the number of cell lines in the experiment
   n_pcs <- num_CLs*2
   param_range <- 10
-  if(num_CLs > 25-param_range & num_CLs < 25+param_range) {
+  if(num_CLs < 25+param_range) {
     clust_res <- 1
   } else if(num_CLs > 50-param_range & num_CLs < 50+param_range) {
     clust_res <- 2

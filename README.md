@@ -3,6 +3,16 @@ Methods to use SNPs or gene expression to classify single cell RNAseq to referen
 
 These methods were used in the paper: 'Multiplexed single-cell profiling of post-perturbation transcriptional responses to define cancer vulnerabilities and therapeutic mechanism of action'
 
+## Running single_cell_classification:
+
+* clone or download the git repo
+* install the R package dependencies using the install_packages.R script
+* open single_cell_classification as your project root directory
+* To run classifications use source(here::here('src', 'run_SNP_classification.R')); run_SNP_classification()
+* To run the QC methods use source(here::here('src', 'run_QC.R')); run_all_QC()
+
+run_SNP_classification() and run_all_QC() read in data from the folder 'data' within the single_cell_classification folder. There is a test data set of 588 cells originating from 5 cell lines. The test data includes the cell barcodes, gene list, expression matrix, and SNP ref and alt allele count matrices for the single cell data and the SNP ref and alt allele count matrices for the 5 reference profiles. On the test data provided run_SNP_classification() and run_all_QC() each take <1 min to run. 
+
 ## Files needed:
 
 These scripts are intended to run on 10X single cell RNAseq processed using Cell Ranger (https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/what-is-cell-ranger). 
@@ -23,6 +33,7 @@ To run the QC scripts or gene_expression_classification these files, as output f
 * matrix.mtx
 * genes.tsv
 * barcodes.tsv
+* classifications.csv - which is the output of run_SNP_classification()
 
 ## Output: 
 
@@ -40,7 +51,7 @@ run_SNP_classification, using defaults, will output a matrix containing the refe
 * tot_reads : total reads in this cell at the SNP sites used for classification 
 * num_SNPs : number of SNPs detected in this cell of the SNP sites used for classification
 
-run_QC outputs cell quality classifications for each cell, classifying each cell as:
+run_QC outputs a Seurat object and includes cell quality classifications for each cell (in the meta.data object), classifying each cell as:
 
 * normal : cells that are used for downstream analyis
 * doublet : cell is more likely a multiplet, discared for downstream analysis
